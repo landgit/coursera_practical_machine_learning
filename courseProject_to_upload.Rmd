@@ -1,0 +1,94 @@
+---
+title: "Course Project"
+author: "Land"
+date: "03/20/2015"
+output: html_document
+---
+
+
+##Clean the data
+
+Get rid of columns which contain NA value or it's a empty slot. 
+
+```{r, cache=TRUE}
+library(dplyr)
+training <- read.csv("training.csv")
+training[training == ""] <- NA
+#put NA value in some empty slot. 
+varsa <- nrow(training) - sum(training$new_window == "yes")
+training <- training[,colSums(is.na(training)) < varsa]
+#get rid of columns whose na is more than numbers of total rows minus number of 
+#window.
+```
+```{r, results='hide'}
+head(training)
+str(training)
+summary(training)
+```
+After some exploratory analysis, the variables: num_window", "new_window", "cvtd_timestamp", "raw_timestamp_part_1", "raw_timestamp_part_2", "X", and  "user_name" are excluded.
+
+```{r}
+varsb <- c("num_window", "new_window", "cvtd_timestamp", 
+           "raw_timestamp_part_1", "raw_timestamp_part_2", "X", "user_name")
+training <- select(training, -one_of(varsb))
+#get rid of columns whose name is...
+```
+
+##Building model, Cross Validation
+
+After reading the reference, I decided to use random forest to build the model. 
+I only specify the ntree is 50. the use cross validation (5 fold) instead of the default, Bootstrapped.
+
+```{r, cache=TRUE}
+library(caret)
+set.seed(998)
+inTrain <- createDataPartition(y=training$classe, p=0.6,list=FALSE)
+smallT <- training[inTrain,]
+#rm(inTrain,training, varsa,varsb)
+#release memory space.
+```
+```{r}
+#modFit <- train(classe ~ ., data=smallT, method="rf",trControl=trainControl(method="cv",number=5), prox=TRUE, ntree=50)
+modFit <- readRDS("RFmodel_cross_validated.rds")
+```
+
+Because the limited memory of my computer, I can't knit the HTML file and
+build the model at the same time, so I have to build the model first, save it 
+as "RFmodel_cross_validated.rds". You can see the parameters I use to build the
+model above.
+
+The result is like this:
+
+```{r, cache=TRUE}
+modFit
+```
+
+The Accuracy is 0.9865.
+```{r, cache=TRUE}
+modFit$finalModel
+```
+
+
+##Check the result, Out of Sample Error
+
+```{r, cache=TRUE}
+testing <- training[-inTrain,]
+pred <- predict(modFit, testing)
+table(pred, testing$classe)
+```
+you can see the prediction result is pretty good from the table.
+
+```{r, cache=TRUE}
+realtesting <- read.csv("testing.csv")
+predr <- predict(modFit, realtesting)
+```
+
+The 20 tests need to be submited are:
+```{r}
+predr
+```
+
+##Reference
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th 
+International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013. 
